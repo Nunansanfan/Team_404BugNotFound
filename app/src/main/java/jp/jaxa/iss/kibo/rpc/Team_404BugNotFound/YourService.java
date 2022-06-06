@@ -23,8 +23,9 @@ public class YourService extends KiboRpcService {
         api.startMission();
 
         // move to a point
-        Point point = new Point(10.71000, -7.75000, 4.48000);
+        Point point = new Point(10.71000, -7.77000, 4.48000);
         Quaternion quaternion = new Quaternion(0, 0.707f, 0, 0.707f);
+        Log.i (TAG,"to point 1 y=-7.77000");
 
         Result result = api.moveTo(point, quaternion, false);
         final  int LOOP_MAX = 5;
