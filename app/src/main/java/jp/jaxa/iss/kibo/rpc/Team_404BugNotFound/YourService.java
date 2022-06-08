@@ -44,6 +44,7 @@ public class YourService extends KiboRpcService {
 
         // get a camera image
         Mat image = api.getMatNavCam();
+        Mat image2 = api.getMatNavCam();
 
 
         // irradiate the laser
@@ -59,6 +60,29 @@ public class YourService extends KiboRpcService {
         /* ******************************************** */
         /* write your own code and repair the air leak! */
         /* ******************************************** */
+
+        //straight path
+//        point = new Point(11.27460, -7.7, 4.48);
+//        quaternion = new Quaternion(0, 0, -0.707f, 0.707f);
+//        api.moveTo(point, quaternion, false);
+//        point = new Point(11.27460, -9.92284, 4.48);
+//        api.moveTo(point, quaternion, false);
+//        point = new Point(11.27460, -9.92284, 5.29881);
+//        api.moveTo(point, quaternion, false);
+
+
+        //test target2 little calculation
+        point = new Point(11.394, -8.87, 4.48);
+        quaternion = new Quaternion(0, 0, -0.707f, 0.707f);
+        api.moveTo(point, quaternion, false);
+        point = new Point(11.394, -9.65, 4.48);
+        api.moveTo(point, quaternion, false);
+        point = new Point(11.27460, -9.92284, 5.29881);
+        api.moveTo(point, quaternion, false);
+        api.laserControl(true);
+        api.takeTarget2Snapshot();
+        api.saveMatImage(image2,"image2.png");
+        api.laserControl(false);
 
         // send mission completion
         api.reportMissionCompletion();
