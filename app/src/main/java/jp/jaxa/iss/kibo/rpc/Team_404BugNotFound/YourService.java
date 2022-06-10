@@ -57,7 +57,7 @@ public class YourService extends KiboRpcService {
         //change z=4.62
         moveToLoop(11.394, -9.65, 4.62,0, 0, -0.707f, 0.707f);
         //change from (11.27460-0.07, -9.92284, 5.29881+0.18) to (11.2046, -9.92284, 5.47881)
-        moveToLoop(11.2046, -9.92284, 5.47881,0, 0, -0.707f, 0.707f);
+        moveToLoop(11.2026, -9.92284, 5.46881,0, 0, -0.707f, 0.707f);
 
         //take a photo
         Mat image2 = api.getMatNavCam();
@@ -66,6 +66,11 @@ public class YourService extends KiboRpcService {
         api.laserControl(true);
         api.takeTarget2Snapshot();
         api.laserControl(false);
+
+        Log.i (TAG,"[NOTE] To goal");
+        moveToLoop(11.27460, -9.65, 4.62063,0, 0, -0.707f, 0.707f);
+        moveToLoop(11.27460, -8.3, 4.62063,0, 0, -0.707f, 0.707f);
+        moveToLoop(11.27460, -7.89178, 4.96538,0, 0, -0.707f, 0.707f);
 
         // send mission completion
         api.reportMissionCompletion();
