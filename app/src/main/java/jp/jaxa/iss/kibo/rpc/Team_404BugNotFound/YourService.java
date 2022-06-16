@@ -147,6 +147,7 @@ public class YourService extends KiboRpcService {
         Mat warped_img = retArr[0];
         Mat cropped_img = retArr[1];
         // now we got warped_img , and cropped_img
+        Log.i (TAG,"[NOTE] cropped image cols : "+cropped_img.cols()+", rows : "+cropped_img.rows());
 
         // find contour
         // can't use ????
@@ -161,6 +162,8 @@ public class YourService extends KiboRpcService {
         Mat binaryImg = new Mat();
         Imgproc.threshold(cropped_img, binaryImg, 100, 200, Imgproc.THRESH_BINARY_INV);
 
+        int x;
+        int y;
         Imgproc.findContours(binaryImg, contours, hierarchey, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_NONE);
         for (int i = 0; i < contours.size(); i++) {
             Scalar color = new Scalar(0, 255.0, 0);
@@ -169,8 +172,8 @@ public class YourService extends KiboRpcService {
                 MatOfPoint2f ct2f = new MatOfPoint2f(contours.get(i).toArray());
                 Moments moment = Imgproc.moments(ct2f);
 
-                int x = (int) (moment.get_m10() / moment.get_m00());
-                int y = (int) (moment.get_m01() / moment.get_m00());
+                x = (int) (moment.get_m10() / moment.get_m00());
+                y = (int) (moment.get_m01() / moment.get_m00());
 
                 Imgproc.circle(cropped_img, new org.opencv.core.Point(x, y), 2, new Scalar(0, 0, 255), -1);
                 Log.i (TAG,"[NOTE] Centroid x = "+x+" y = "+y);
@@ -183,8 +186,10 @@ public class YourService extends KiboRpcService {
         api.saveMatImage(cropped_img,"cropped_img.png");
         api.saveMatImage(processImage,"proc_img.png");
 
-
-        moveToLoop(11.2026, -9.92284, 5.46881,0, 0, -0.707f, 0.707f);
+        // x - , z +
+//        relativeMoveToLoop(/*-0.16*/-tarx-0.0572,-0.27284,tary+0.1111/*+0.16+0.1111*/,0,0,-0.707f,0.707f);
+        relativeMoveToLoop(-tarx-0.0572,-0.27284,tary+0.1111,0,0,-0.707f,0.707f);
+//        moveToLoop(11.2026, -9.92284, 5.46881,0, 0, -0.707f, 0.707f);
         // takeTarget2
         api.laserControl(true);
         api.takeTarget2Snapshot();
@@ -222,6 +227,23 @@ public class YourService extends KiboRpcService {
             ++loopCounter;
         }
         Log.i (TAG,"[NOTE] moveTo("+point.getX()+" ,"+point.getY()+" ,"+point.getZ()+") Loop number: "+loopCounter);
+        return result;
+
+    }
+
+    private Result relativeMoveToLoop(double PointX, double PointY, double PointZ, float QuaternionX, float QuaternionY, float QuaternionZ, float QuaternionW ){
+        Point point = new Point(PointX, PointY, PointZ);
+        Quaternion quaternion = new Quaternion(QuaternionX, QuaternionY, QuaternionZ, QuaternionW);
+        Result result = api.relativeMoveTo(point, quaternion, false);
+        final  int LOOP_MAX = 5;
+        //check result and loop while moveTo api is not succeeded
+        int loopCounter = 0;
+        while(!result.hasSucceeded() && loopCounter < LOOP_MAX){
+            //retry
+            result = api.relativeMoveTo(point, quaternion, false);
+            ++loopCounter;
+        }
+        Log.i (TAG,"[NOTE] relativeMoveTo("+point.getX()+" ,"+point.getY()+" ,"+point.getZ()+") Loop number: "+loopCounter);
         return result;
 
     }
@@ -355,6 +377,7 @@ public class YourService extends KiboRpcService {
 //	    2-------3
         MatOfPoint2f dst_pts = new MatOfPoint2f(new org.opencv.core.Point(max_w - 1, 0), new org.opencv.core.Point(0, 0), new org.opencv.core.Point(0, max_h - 1),
                 new org.opencv.core.Point(max_w - 1, max_h - 1));
+        Log.i ("YourService","width : "+max_w+", height : "+max_h);
         MatOfPoint2f _pts = new MatOfPoint2f();
         _pts.fromList(src_pts);
         target_rect= new Rect();
