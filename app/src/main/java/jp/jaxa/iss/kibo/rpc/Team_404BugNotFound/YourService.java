@@ -162,8 +162,8 @@ public class YourService extends KiboRpcService {
         Mat binaryImg = new Mat();
         Imgproc.threshold(cropped_img, binaryImg, 100, 200, Imgproc.THRESH_BINARY_INV);
 
-        int x;
-        int y;
+        int x=0;
+        int y=0;
         Imgproc.findContours(binaryImg, contours, hierarchey, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_NONE);
         for (int i = 0; i < contours.size(); i++) {
             Scalar color = new Scalar(0, 255.0, 0);
@@ -186,9 +186,26 @@ public class YourService extends KiboRpcService {
         api.saveMatImage(cropped_img,"cropped_img.png");
         api.saveMatImage(processImage,"proc_img.png");
 
+        double height=13.3;
+        double width=17.5;
+        int croppedRows = cropped_img.rows();
+        int croppedCols = cropped_img.cols();
+        double cmPerPixRow=height/croppedRows;
+        double cmPerPixCols=width/croppedCols;
+        double centerX=croppedCols/2;
+        double centerY=2.5/cmPerPixRow;
+
+        double moveXcoor=x-centerX;
+        double moveYcoor=y-centerY;
+
+        double moveXmetre=(moveXcoor*cmPerPixCols)/100;
+        double moveYmetre=(moveYcoor*cmPerPixRow)/100;
+
+
+
         // x - , z +
-//        relativeMoveToLoop(/*-0.16*/-tarx-0.0572,-0.27284,tary+0.1111/*+0.16+0.1111*/,0,0,-0.707f,0.707f);
-        relativeMoveToLoop(-tarx-0.0572,-0.27284,tary+0.1111,0,0,-0.707f,0.707f);
+//        relativeMoveToLoop(tarx-0.0572,-0.27284,tary+0.1111,0,0,-0.707f,0.707f);
+        relativeMoveToLoop(tarx-0.0994+moveXmetre,-0.27284,tary+0.0285-moveYmetre,0,0,-0.707f,0.707f);
 //        moveToLoop(11.2026, -9.92284, 5.46881,0, 0, -0.707f, 0.707f);
         // takeTarget2
         api.laserControl(true);
