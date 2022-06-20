@@ -107,10 +107,12 @@ public class YourService extends KiboRpcService {
         find_ROI3D(rvec, tvec, offset_c);
         List<MatOfPoint3f> offset = offset_c;
 
-        Log.i (TAG,"[NOTE] check rvec[0] = "+rvec.get(0,0)+", "+rvec.get(0,1)+", "+rvec.get(0,2)+", "+rvec.get(0,3));
-        Log.i (TAG,"[NOTE] check rvec[0] = "+rvec.get(1,0)+", "+rvec.get(1,1)+", "+rvec.get(1,2)+", "+rvec.get(1,3));
-        Log.i (TAG,"[NOTE] check rvec[0] = "+rvec.get(2,0)+", "+rvec.get(2,1)+", "+rvec.get(2,2)+", "+rvec.get(2,3));
-        Log.i (TAG,"[NOTE] check rvec[0] = "+rvec.get(3,0)+", "+rvec.get(3,1)+", "+rvec.get(3,2)+", "+rvec.get(3,3));
+        Mat rMat=new Mat();
+        Calib3d.Rodrigues(rvec,rMat);
+
+        Log.i (TAG,"[NOTE] check rvec[0] = "+rMat.get(0,0)[0]+", "+rMat.get(0,1)[0]+", "+rMat.get(0,2)[0]);
+        Log.i (TAG,"[NOTE] check rvec[1] = "+rMat.get(1,0)[0]+", "+rMat.get(1,1)[0]+", "+rMat.get(1,2)[0]);
+        Log.i (TAG,"[NOTE] check rvec[2] = "+rMat.get(2,0)[0]+", "+rMat.get(2,1)[0]+", "+rMat.get(2,2)[0]);
 
 
         double tarx = (double) tvec.get(0, 0)[0];
@@ -118,6 +120,14 @@ public class YourService extends KiboRpcService {
         double tarz = (double) tvec.get(2, 0)[0];
         Point3 tar_pos = new Point3(tarx, tary, tarz);
         Log.i (TAG,"[NOTE] check tvec = "+tarx+", "+tary+", "+tarz);
+
+        double[][] rtmatrix={{rMat.get(0,0)[0],rMat.get(0,1)[0],rMat.get(0,2)[0],tarx}
+                ,{rMat.get(1,0)[0],rMat.get(1,1)[0],rMat.get(1,2)[0],tary}
+                ,{rMat.get(2,0)[0],rMat.get(2,1)[0],rMat.get(2,2)[0],tarz}
+                ,{0,0,0,1}};
+        double[][] camMatrixForMult = new double[][] { {fx, 0, cx}, {0.0, fy, cy}, {0.0, 0.0, 1.0} };
+        double[][] iMatrix={{1,0,0,0},{0,1,0,0},{0,0,1,0}};
+
 
         MatOfPoint3f _target3D = new MatOfPoint3f();
         _target3D.fromArray(tar_pos);
@@ -192,23 +202,23 @@ public class YourService extends KiboRpcService {
         api.saveMatImage(cropped_img,"cropped_img.png");
         api.saveMatImage(processImage,"proc_img.png");
 
-        double height=13.3;
-        double width=17.5;
-        int croppedRows = cropped_img.rows();
-        int croppedCols = cropped_img.cols();
-        double cmPerPixRow=height/croppedRows;
-        double cmPerPixCols=width/croppedCols;
-        double centerX=croppedCols/2;
-        double centerY=2.5/cmPerPixRow;
+//        double height=13.3;
+//        double width=17.5;
+//        int croppedRows = cropped_img.rows();
+//        int croppedCols = cropped_img.cols();
+//        double cmPerPixRow=height/croppedRows;
+//        double cmPerPixCols=width/croppedCols;
+//        double centerX=croppedCols/2;
+//        double centerY=2.5/cmPerPixRow;
+//
+//        double moveXcoor=x-centerX;
+//        double moveYcoor=y-centerY;
 
-        double moveXcoor=x-centerX;
-        double moveYcoor=y-centerY;
 
+//        double moveXmetre=(moveXcoor*cmPerPixCols)/100;
+//        double moveYmetre=(moveYcoor*cmPerPixRow)/100;
 
-        double moveXmetre=(moveXcoor*cmPerPixCols)/100;
-        double moveYmetre=(moveYcoor*cmPerPixRow)/100;
-
-        Log.i (TAG,"[NOTE] moveXmetre = "+moveXmetre+", moveYmetre = "+moveYmetre);
+//        Log.i (TAG,"[NOTE] moveXmetre = "+moveXmetre+", moveYmetre = "+moveYmetre);
 
 
         // x - , z +
@@ -216,9 +226,55 @@ public class YourService extends KiboRpcService {
         // this is close
 //        relativeMoveToLoop(tarx-0.0994+moveXmetre,0,tary+0.0285+moveYmetre,0,0,-0.707f,0.707f);
         // x-0.0994 , y+0.0285 is the correct offset
-        relativeMoveToLoop(tarx+moveXmetre-0.0994,0,tary+moveYmetre+0.0285,0,0,-0.707f,0.707f);
+        // usable------------------------------------------------------
+//        relativeMoveToLoop(tarx+moveXmetre-0.0994,0,tary+moveYmetre+0.0285,0,0,-0.707f,0.707f);
+        //-------------------------------------------------------------
 //        relativeMoveToLoop(tarx-0.0994+moveXmetre,-0.27284,tary+0.0285-moveYmetre,0,0,-0.707f,0.707f);
 //        moveToLoop(11.2026, -9.92284, 5.46881,0, 0, -0.707f, 0.707f);
+
+        double[][] centroidCoordinate={{x,y,1}};
+
+        //Cramer's Law
+        double[][] matrixA = multiplyMatrices(camMatrixForMult,iMatrix);
+        matrixA = multiplyMatrices(matrixA,rtmatrix);
+        double a03=matrixA[0][3];
+        matrixA[0][3]=0;
+        double a13=matrixA[1][3];
+        matrixA[1][3]=0;
+        double a23=matrixA[2][3];
+        matrixA[2][3]=0;
+        double detA=determinantOfMatrix(matrixA,3);
+
+        double realX=0, realY=0, realZ=0;
+        if(detA!=0) {
+            //x
+            double[][] tempxMat = {{x-a03, matrixA[0][1], matrixA[0][2]}
+                    , {y-a13, matrixA[1][1], matrixA[1][2]}
+                    , {1-a23, matrixA[2][1], matrixA[2][2]}};
+            double detTempXMat = determinantOfMatrix(tempxMat, 3);
+            realX=detTempXMat/detA;
+
+            //y
+            double[][] tempyMat = {{matrixA[0][0],x-a03, matrixA[0][2]}
+                    , {matrixA[1][0], y-a13, matrixA[1][2]}
+                    , {matrixA[2][0], 1-a23, matrixA[2][2]}};
+            double detTempYMat = determinantOfMatrix(tempyMat, 3);
+            realY=detTempYMat/detA;
+
+            //z
+            double[][] tempzMat = {{matrixA[0][0],matrixA[0][1], x-a03}
+                    , {matrixA[1][0],matrixA[1][1], y-a13}
+                    , {matrixA[2][0],matrixA[2][1], 1-a23}};
+            double detTempZMat = determinantOfMatrix(tempzMat, 3);
+            realZ=detTempZMat/detA;
+        }
+        else{
+            Log.i (TAG,"[NOTE] error det = 0");
+        }
+
+        Log.i (TAG,"[NOTE] realX,realY,realZ = "+realX+", "+realY+", "+realZ);
+
+
         // takeTarget2
         api.laserControl(true);
         api.takeTarget2Snapshot();
@@ -242,6 +298,79 @@ public class YourService extends KiboRpcService {
     protected void runPlan3(){
         // write here your plan 3
     }
+
+    private static double[][] MatrixMultiply(double[][] A ,double[][] B){
+        double[][] Mul = new double[A.length][B[0].length];
+        if(A[0].length!=B.length)
+            return null;
+        for (int i = 0; i < A.length; i++) {
+            for (int j = 0; j < B[0].length; j++) {
+                for (int k = 0; k < B.length; k++)
+                    Mul[i][j] += A[i][k] * B[k][j];
+            }
+        }
+        return Mul;
+    }
+    // Function to get cofactor of
+    // mat[p][q] in temp[][]. n is
+    // current dimension of mat[][]
+    static void getCofactor(double mat[][], double temp[][],
+                            int p, int q, int n)
+    {
+        int i = 0, j = 0;
+
+        // Looping for each element
+        // of the matrix
+        for (int row = 0; row < n; row++) {
+            for (int col = 0; col < n; col++) {
+                // Copying into temporary matrix
+                // only those element which are
+                // not in given row and column
+                if (row != p && col != q) {
+                    temp[i][j++] = mat[row][col];
+                    // Row is filled, so increase
+                    // row index and reset col index
+                    if (j == n - 1) {
+                        j = 0;
+                        i++;
+                    }
+                }
+            }
+        }
+    }
+
+    /* Recursive function for finding determinant
+    of matrix. n is current dimension of mat[][]. */
+    static double determinantOfMatrix(double mat[][], int n)
+    {
+        double D = 0; // Initialize result
+
+        // Base case : if matrix
+        // contains single element
+        if (n == 1)
+            return mat[0][0];
+
+        // To store cofactors
+        double temp[][] = new double[n][n];
+
+        // To store sign multiplier
+        int sign = 1;
+
+        // Iterate for each element of first row
+        for (int f = 0; f < n; f++) {
+            // Getting Cofactor of mat[0][f]
+            getCofactor(mat, temp, 0, f, n);
+            D += sign * mat[0][f]
+                    * determinantOfMatrix(temp, n - 1);
+
+            // terms are to be added
+            // with alternate sign
+            sign = -sign;
+        }
+
+        return D;
+    }
+
 
     private Result moveToLoop(double PointX, double PointY, double PointZ, float QuaternionX, float QuaternionY, float QuaternionZ, float QuaternionW ){
         Point point = new Point(PointX, PointY, PointZ);
