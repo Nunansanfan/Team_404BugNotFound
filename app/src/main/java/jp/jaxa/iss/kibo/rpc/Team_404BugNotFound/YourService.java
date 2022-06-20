@@ -65,7 +65,7 @@ public class YourService extends KiboRpcService {
         //change z=4.62
         moveToLoop(11.394, -9.65, 4.62,0, 0, -0.707f, 0.707f);
         //change from (11.27460-0.07, -9.92284, 5.29881+0.18) to (11.2046, -9.92284, 5.47881)
-//        moveToLoop(11.2026, -9.92284, 5.46881,0, 0, -0.707f, 0.707f);
+        moveToLoop(11.2026, -9.92284, 5.46881,0, 0, -0.707f, 0.707f);
 
         //init variable value
         int dictID = Aruco.DICT_5X5_250;
@@ -106,6 +106,12 @@ public class YourService extends KiboRpcService {
         List<MatOfPoint3f> offset_c = new ArrayList<MatOfPoint3f>();
         find_ROI3D(rvec, tvec, offset_c);
         List<MatOfPoint3f> offset = offset_c;
+
+        Log.i (TAG,"[NOTE] check rvec[0] = "+rvec.get(0,0)+", "+rvec.get(0,1)+", "+rvec.get(0,2)+", "+rvec.get(0,3));
+        Log.i (TAG,"[NOTE] check rvec[0] = "+rvec.get(1,0)+", "+rvec.get(1,1)+", "+rvec.get(1,2)+", "+rvec.get(1,3));
+        Log.i (TAG,"[NOTE] check rvec[0] = "+rvec.get(2,0)+", "+rvec.get(2,1)+", "+rvec.get(2,2)+", "+rvec.get(2,3));
+        Log.i (TAG,"[NOTE] check rvec[0] = "+rvec.get(3,0)+", "+rvec.get(3,1)+", "+rvec.get(3,2)+", "+rvec.get(3,3));
+
 
         double tarx = (double) tvec.get(0, 0)[0];
         double tary = (double) tvec.get(1, 0)[0];
@@ -198,14 +204,20 @@ public class YourService extends KiboRpcService {
         double moveXcoor=x-centerX;
         double moveYcoor=y-centerY;
 
+
         double moveXmetre=(moveXcoor*cmPerPixCols)/100;
         double moveYmetre=(moveYcoor*cmPerPixRow)/100;
 
+        Log.i (TAG,"[NOTE] moveXmetre = "+moveXmetre+", moveYmetre = "+moveYmetre);
 
 
         // x - , z +
 //        relativeMoveToLoop(tarx-0.0572,-0.27284,tary+0.1111,0,0,-0.707f,0.707f);
-        relativeMoveToLoop(tarx-0.0994+moveXmetre,-0.27284,tary+0.0285-moveYmetre,0,0,-0.707f,0.707f);
+        // this is close
+//        relativeMoveToLoop(tarx-0.0994+moveXmetre,0,tary+0.0285+moveYmetre,0,0,-0.707f,0.707f);
+        // x-0.0994 , y+0.0285 is the correct offset
+        relativeMoveToLoop(tarx+moveXmetre-0.0994,0,tary+moveYmetre+0.0285,0,0,-0.707f,0.707f);
+//        relativeMoveToLoop(tarx-0.0994+moveXmetre,-0.27284,tary+0.0285-moveYmetre,0,0,-0.707f,0.707f);
 //        moveToLoop(11.2026, -9.92284, 5.46881,0, 0, -0.707f, 0.707f);
         // takeTarget2
         api.laserControl(true);
