@@ -121,10 +121,11 @@ public class YourService extends KiboRpcService {
         Point3 tar_pos = new Point3(tarx, tary, tarz);
         Log.i (TAG,"[NOTE] check tvec = "+tarx+", "+tary+", "+tarz);
 
-        double[][] rtmatrix={{rMat.get(0,0)[0],rMat.get(0,1)[0],rMat.get(0,2)[0],tarx}
-                ,{rMat.get(1,0)[0],rMat.get(1,1)[0],rMat.get(1,2)[0],tary}
-                ,{rMat.get(2,0)[0],rMat.get(2,1)[0],rMat.get(2,2)[0],tarz}
-                ,{0,0,0,1}};
+        double[][] rtmatrix={{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}};
+//        double[][] rtmatrix={{rMat.get(0,0)[0],rMat.get(0,1)[0],rMat.get(0,2)[0],tarx}
+//                ,{rMat.get(1,0)[0],rMat.get(1,1)[0],rMat.get(1,2)[0],tary}
+//                ,{rMat.get(2,0)[0],rMat.get(2,1)[0],rMat.get(2,2)[0],tarz}
+//                ,{0,0,0,1}};
         double[][] camMatrixForMult = new double[][] { {fx, 0, cx}, {0.0, fy, cy}, {0.0, 0.0, 1.0} };
         double[][] iMatrix={{1,0,0,0},{0,1,0,0},{0,0,1,0}};
 
@@ -148,6 +149,8 @@ public class YourService extends KiboRpcService {
 //        Point center = new Point(cpx,cpy);
 //		Imgproc.circle(imgProc.processedImg, center, 4, new Scalar(0,255,255), -1);
         Calib3d.drawFrameAxes(processImage, cameraMatrix, dstMatrix, rvec, rvec, (float) 0.05);
+
+        Log.i (TAG,"[NOTE] cpx = "+cpx+" cpy = "+cpy);
 
         List<org.opencv.core.Point> ROI_points = new ArrayList<>();
         for (int i = 0; i < 4; i++) {
@@ -202,29 +205,32 @@ public class YourService extends KiboRpcService {
         api.saveMatImage(cropped_img,"cropped_img.png");
         api.saveMatImage(processImage,"proc_img.png");
 
-//        double height=13.3;
-//        double width=17.5;
-//        int croppedRows = cropped_img.rows();
-//        int croppedCols = cropped_img.cols();
-//        double cmPerPixRow=height/croppedRows;
-//        double cmPerPixCols=width/croppedCols;
-//        double centerX=croppedCols/2;
-//        double centerY=2.5/cmPerPixRow;
-//
-//        double moveXcoor=x-centerX;
-//        double moveYcoor=y-centerY;
+        double height=13.3;
+        double width=17.5;
+        int croppedRows = cropped_img.rows();
+        int croppedCols = cropped_img.cols();
+        double cmPerPixRow=height/croppedRows;
+        double cmPerPixCols=width/croppedCols;
 
+        double centerX=croppedCols/2;
+        double centerY=croppedRows/2;
 
-//        double moveXmetre=(moveXcoor*cmPerPixCols)/100;
-//        double moveYmetre=(moveYcoor*cmPerPixRow)/100;
+        double moveXcoor=x-centerX;
+        double moveYcoor=y-centerY;
 
-//        Log.i (TAG,"[NOTE] moveXmetre = "+moveXmetre+", moveYmetre = "+moveYmetre);
+        double xCoorFullPic=cpx+moveXcoor;
+        double yCoorFullPic=cpy+moveYcoor;
 
+        double moveXmetre=(moveXcoor*cmPerPixCols)/100;
+        double moveYmetre=(moveYcoor*cmPerPixRow)/100;
+
+        Log.i (TAG,"[NOTE] moveXmetre = "+moveXmetre+", moveYmetre = "+moveYmetre);
+        Log.i (TAG,"[NOTE] Full Pic x = "+xCoorFullPic+", y = "+yCoorFullPic);
 
         // x - , z +
 //        relativeMoveToLoop(tarx-0.0572,-0.27284,tary+0.1111,0,0,-0.707f,0.707f);
         // this is close
-//        relativeMoveToLoop(tarx-0.0994+moveXmetre,0,tary+0.0285+moveYmetre,0,0,-0.707f,0.707f);
+//        relativeMoveToLoop(tarx-0.0994+,0,tary+0.0285+moveYmetre,0,0,-0.707f,0.707f);
         // x-0.0994 , y+0.0285 is the correct offset
         // usable------------------------------------------------------
 //        relativeMoveToLoop(tarx+moveXmetre-0.0994,0,tary+moveYmetre+0.0285,0,0,-0.707f,0.707f);
@@ -232,11 +238,13 @@ public class YourService extends KiboRpcService {
 //        relativeMoveToLoop(tarx-0.0994+moveXmetre,-0.27284,tary+0.0285-moveYmetre,0,0,-0.707f,0.707f);
 //        moveToLoop(11.2026, -9.92284, 5.46881,0, 0, -0.707f, 0.707f);
 
-        double[][] centroidCoordinate={{x,y,1}};
+        double[] centroidCoordinate={xCoorFullPic,yCoorFullPic,1};
 
         //Cramer's Law
         double[][] matrixA = multiplyMatrices(camMatrixForMult,iMatrix);
-        matrixA = multiplyMatrices(matrixA,rtmatrix);
+        //removable
+//        matrixA = multiplyMatrices(matrixA,rtmatrix);
+
         double a03=matrixA[0][3];
         matrixA[0][3]=0;
         double a13=matrixA[1][3];
@@ -248,23 +256,23 @@ public class YourService extends KiboRpcService {
         double realX=0, realY=0, realZ=0;
         if(detA!=0) {
             //x
-            double[][] tempxMat = {{x-a03, matrixA[0][1], matrixA[0][2]}
-                    , {y-a13, matrixA[1][1], matrixA[1][2]}
-                    , {1-a23, matrixA[2][1], matrixA[2][2]}};
+            double[][] tempxMat = {{centroidCoordinate[0]-a03, matrixA[0][1], matrixA[0][2]}
+                    , {centroidCoordinate[1]-a13, matrixA[1][1], matrixA[1][2]}
+                    , {centroidCoordinate[2]-a23, matrixA[2][1], matrixA[2][2]}};
             double detTempXMat = determinantOfMatrix(tempxMat, 3);
             realX=detTempXMat/detA;
 
             //y
-            double[][] tempyMat = {{matrixA[0][0],x-a03, matrixA[0][2]}
-                    , {matrixA[1][0], y-a13, matrixA[1][2]}
-                    , {matrixA[2][0], 1-a23, matrixA[2][2]}};
+            double[][] tempyMat = {{matrixA[0][0],centroidCoordinate[0]-a03, matrixA[0][2]}
+                    , {matrixA[1][0], centroidCoordinate[1]-a13, matrixA[1][2]}
+                    , {matrixA[2][0], centroidCoordinate[2]-a23, matrixA[2][2]}};
             double detTempYMat = determinantOfMatrix(tempyMat, 3);
             realY=detTempYMat/detA;
 
             //z
-            double[][] tempzMat = {{matrixA[0][0],matrixA[0][1], x-a03}
-                    , {matrixA[1][0],matrixA[1][1], y-a13}
-                    , {matrixA[2][0],matrixA[2][1], 1-a23}};
+            double[][] tempzMat = {{matrixA[0][0],matrixA[0][1], centroidCoordinate[0]-a03}
+                    , {matrixA[1][0],matrixA[1][1], centroidCoordinate[1]-a13}
+                    , {matrixA[2][0],matrixA[2][1], centroidCoordinate[2]-a23}};
             double detTempZMat = determinantOfMatrix(tempzMat, 3);
             realZ=detTempZMat/detA;
         }
@@ -273,6 +281,8 @@ public class YourService extends KiboRpcService {
         }
 
         Log.i (TAG,"[NOTE] realX,realY,realZ = "+realX+", "+realY+", "+realZ);
+//        relativeMoveToLoop(-0.0994+realX,0,+0.0285+realY,0,0,-0.707f,0.707f);
+        relativeMoveToLoop(-0.0572+realX,0,+0.1111+realY,0,0,-0.707f,0.707f);
 
 
         // takeTarget2
@@ -297,6 +307,17 @@ public class YourService extends KiboRpcService {
     @Override
     protected void runPlan3(){
         // write here your plan 3
+    }
+
+
+    public static double[][] matrixTranspose(double[][] m){
+        double[][] ret=new double[m[0].length][m.length];
+        for(int i=0;i<m[0].length;i++){
+            for(int j=0;j<m.length;j++){
+                ret[i][j]=m[j][i];
+            }
+        }
+        return  ret;
     }
 
     private static double[][] MatrixMultiply(double[][] A ,double[][] B){
