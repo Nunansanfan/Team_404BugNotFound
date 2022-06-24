@@ -232,6 +232,7 @@ public class YourService extends KiboRpcService {
         // this is close
 //        relativeMoveToLoop(tarx-0.0994+,0,tary+0.0285+moveYmetre,0,0,-0.707f,0.707f);
         // x-0.0994 , y+0.0285 is the correct offset
+        relativeMoveToLoop(moveXmetre,0,moveYmetre,0,0,-0.707f,0.707f);
         // usable------------------------------------------------------
 //        relativeMoveToLoop(tarx+moveXmetre-0.0994,0,tary+moveYmetre+0.0285,0,0,-0.707f,0.707f);
         //-------------------------------------------------------------
@@ -280,9 +281,15 @@ public class YourService extends KiboRpcService {
             Log.i (TAG,"[NOTE] error det = 0");
         }
 
+        if(cpy<yCoorFullPic){
+            realY=-realY;
+        }
+
+
+
         Log.i (TAG,"[NOTE] realX,realY,realZ = "+realX+", "+realY+", "+realZ);
 //        relativeMoveToLoop(-0.0994+realX,0,+0.0285+realY,0,0,-0.707f,0.707f);
-        relativeMoveToLoop(-0.0572+realX,0,+0.1111+realY,0,0,-0.707f,0.707f);
+//        relativeMoveToLoop(-0.0572+realX,0,+0.1111+realY,0,0,-0.707f,0.707f);
 
 
         // takeTarget2
