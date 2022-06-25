@@ -65,7 +65,8 @@ public class YourService extends KiboRpcService {
         //change z=4.62
         moveToLoop(11.394, -9.65, 4.62,0, 0, -0.707f, 0.707f);
         //change from (11.27460-0.07, -9.92284, 5.29881+0.18) to (11.2046, -9.92284, 5.47881)
-        moveToLoop(11.2026, -9.92284, 5.46881,0, 0, -0.707f, 0.707f);
+        //moveToLoop(11.2026, -9.92284, 5.46881,0, 0, -0.707f, 0.707f);
+        moveToLoop(11.27460, -9.92284, 5.29881,0, 0, -0.707f, 0.707f);
 
         //init variable value
         int dictID = Aruco.DICT_5X5_250;
@@ -181,8 +182,8 @@ public class YourService extends KiboRpcService {
         Mat binaryImg = new Mat();
         Imgproc.threshold(cropped_img, binaryImg, 100, 200, Imgproc.THRESH_BINARY_INV);
 
-        int x=0;
-        int y=0;
+        double x=0;
+        double y=0;
         Imgproc.findContours(binaryImg, contours, hierarchey, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_NONE);
         for (int i = 0; i < contours.size(); i++) {
             Scalar color = new Scalar(0, 255.0, 0);
@@ -191,12 +192,12 @@ public class YourService extends KiboRpcService {
                 MatOfPoint2f ct2f = new MatOfPoint2f(contours.get(i).toArray());
                 Moments moment = Imgproc.moments(ct2f);
 
-                x = (int) (moment.get_m10() / moment.get_m00());
-                y = (int) (moment.get_m01() / moment.get_m00());
+                x = (moment.get_m10() / moment.get_m00());
+                y = (moment.get_m01() / moment.get_m00());
 
                 Imgproc.circle(cropped_img, new org.opencv.core.Point(x, y), 2, new Scalar(0, 0, 255), -1);
                 Log.i (TAG,"[NOTE] Centroid x = "+x+" y = "+y);
-
+                break;
             }
             Imgproc.drawContours(cropped_img, contours, i, color, 1, Imgproc.LINE_8, hierarchey, 1,
                     new org.opencv.core.Point());
@@ -237,6 +238,7 @@ public class YourService extends KiboRpcService {
         //-------------------------------------------------------------
 //        relativeMoveToLoop(tarx-0.0994+moveXmetre,-0.27284,tary+0.0285-moveYmetre,0,0,-0.707f,0.707f);
 //        moveToLoop(11.2026, -9.92284, 5.46881,0, 0, -0.707f, 0.707f);
+
 
         double[] centroidCoordinate={xCoorFullPic,yCoorFullPic,1};
 
@@ -282,8 +284,8 @@ public class YourService extends KiboRpcService {
 
         Log.i (TAG,"[NOTE] realX,realY,realZ = "+realX+", "+realY+", "+realZ);
 //        relativeMoveToLoop(-0.0994+realX,0,+0.0285+realY,0,0,-0.707f,0.707f);
-        relativeMoveToLoop(-0.0572+realX,0,+0.1111+realY,0,0,-0.707f,0.707f);
-
+        //relativeMoveToLoop(-0.0572+realX,0,+0.1111+realY,0,0,-0.707f,0.707f);
+        moveToLoop(11.2026+moveXmetre, -9.92284, 5.46881+0.0145+moveYmetre,0, 0, -0.707f, 0.707f);
 
         // takeTarget2
         api.laserControl(true);
