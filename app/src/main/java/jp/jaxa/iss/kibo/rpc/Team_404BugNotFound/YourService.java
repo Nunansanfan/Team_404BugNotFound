@@ -40,6 +40,7 @@ public class YourService extends KiboRpcService {
 
         // get a camera image
         Mat image1 = api.getMatNavCam();
+
         //save the image
         api.saveMatImage(image1,"image1.png");
 
@@ -50,42 +51,28 @@ public class YourService extends KiboRpcService {
 
         api.laserControl(false);
 
-        //straight path
-//        point = new Point(11.27460, -7.7, 4.48);
-//        quaternion = new Quaternion(0, 0, -0.707f, 0.707f);
-//        api.moveTo(point, quaternion, false);
-//        point = new Point(11.27460, -9.92284, 4.48);
-//        api.moveTo(point, quaternion, false);
-//        point = new Point(11.27460, -9.92284, 5.29881);
-//        api.moveTo(point, quaternion, false);
-
+        //move to point2
         Log.i (TAG,"[NOTE] To point2");
-        //test target2 little calculation
         moveToLoop(11.394, -8.87, 4.48,0, 0, -0.707f, 0.707f);
-        //change z=4.62
         moveToLoop(11.394, -9.65, 4.62,0, 0, -0.707f, 0.707f);
-        //change from (11.27460-0.07, -9.92284, 5.29881+0.18) to (11.2046, -9.92284, 5.47881)
-        //moveToLoop(11.2026, -9.92284, 5.46881,0, 0, -0.707f, 0.707f);
         moveToLoop(11.27460, -9.92284, 5.29881,0, 0, -0.707f, 0.707f);
 
         //init variable value
         int dictID = Aruco.DICT_5X5_250;
-        double fx = 523.105750;
-        double cx = 635.434258;
-        double fy = 534.765913;
-        double cy = 500.335102;
-        double[] camMatrix = new double[] { fx, 0, cx, 0.0, fy, cy, 0.0, 0.0, 1.0 };
-        double[] distortionArray = new double[] {-0.164787, 0.020375, -0.001572, -0.000369, 0.000000};
+        double[][] navCamIntrinsics = api.getNavCamIntrinsics();
+        double[] camMatrix = navCamIntrinsics[0];
+        double[] distortionArray = navCamIntrinsics[1];
         Mat cameraMatrix = new Mat(3, 3, CvType.CV_64FC1);
         cameraMatrix.put(0, 0, camMatrix);// (row, col,int[])
         Mat dstMatrix = new Mat(1, 5, CvType.CV_64FC1);
         dstMatrix.put(0, 0, distortionArray);
         MatOfDouble distortion = new MatOfDouble();
         distortion.fromArray(distortionArray);
-        List<Mat> objP2 = new ArrayList<Mat>();
+        List<Mat> objP2 = new ArrayList<>();
         MatOfInt board2ID = new MatOfInt();
         setBoard(objP2,board2ID);
 
+        //prepare for aruco detect
         ArrayList<Mat> corners = new ArrayList<>();
         Mat ids = new Mat();
         Dictionary dict = Aruco.getPredefinedDictionary(dictID);
@@ -94,17 +81,21 @@ public class YourService extends KiboRpcService {
         //take a photo
         Mat image2 = api.getMatNavCam();
         api.saveMatImage(image2,"target2.png");
+        Log.i (TAG,"[NOTE] taking a picture of target2 for image proc");
         Mat processImage = new Mat(image2.rows(), image2.cols(), image2.type());
         image2.copyTo(processImage);
         Mat originalImg = new Mat(image2.rows(), image2.cols(), image2.type());
         image2.copyTo(originalImg);
+
+        //detect aruco markers
+        Log.i (TAG,"[NOTE] detecting aruco marker");
         Aruco.detectMarkers(processImage, dict, corners, ids);
         Mat rvec = new Mat();
         Mat tvec = new Mat();
+
+        //estimate pose board
         Aruco.estimatePoseBoard(corners, ids, t2_board, cameraMatrix, dstMatrix, rvec, tvec);
-
-
-        List<MatOfPoint3f> offset_c = new ArrayList<MatOfPoint3f>();
+        List<MatOfPoint3f> offset_c = new ArrayList<>();
         find_ROI3D(rvec, tvec, offset_c);
         List<MatOfPoint3f> offset = offset_c;
 
@@ -121,14 +112,6 @@ public class YourService extends KiboRpcService {
         double tarz = (double) tvec.get(2, 0)[0];
         Point3 tar_pos = new Point3(tarx, tary, tarz);
         Log.i (TAG,"[NOTE] check tvec = "+tarx+", "+tary+", "+tarz);
-
-        double[][] rtmatrix={{1,0,0,0},{0,1,0,0},{0,0,1,0},{0,0,0,1}};
-//        double[][] rtmatrix={{rMat.get(0,0)[0],rMat.get(0,1)[0],rMat.get(0,2)[0],tarx}
-//                ,{rMat.get(1,0)[0],rMat.get(1,1)[0],rMat.get(1,2)[0],tary}
-//                ,{rMat.get(2,0)[0],rMat.get(2,1)[0],rMat.get(2,2)[0],tarz}
-//                ,{0,0,0,1}};
-        double[][] camMatrixForMult = new double[][] { {fx, 0, cx}, {0.0, fy, cy}, {0.0, 0.0, 1.0} };
-        double[][] iMatrix={{1,0,0,0},{0,1,0,0},{0,0,1,0}};
 
 
         MatOfPoint3f _target3D = new MatOfPoint3f();
@@ -147,8 +130,7 @@ public class YourService extends KiboRpcService {
 
         int cpx = (int) _targetImagePlane.get(0, 0)[0];
         int cpy = (int) _targetImagePlane.get(0, 0)[1];
-//        Point center = new Point(cpx,cpy);
-//		Imgproc.circle(imgProc.processedImg, center, 4, new Scalar(0,255,255), -1);
+
         Calib3d.drawFrameAxes(processImage, cameraMatrix, dstMatrix, rvec, rvec, (float) 0.05);
 
         Log.i (TAG,"[NOTE] cpx = "+cpx+" cpy = "+cpy);
@@ -161,27 +143,20 @@ public class YourService extends KiboRpcService {
             org.opencv.core.Point _center = new org.opencv.core.Point(_cpx, _cpy);
             ROI_points.add(_center);
         }
+
         // find Region of interest
         Rect target_rect = new Rect();
         Mat[] retArr = find_paper(processImage, ROI_points, originalImg,target_rect);
-        Mat warped_img = retArr[0];
         Mat cropped_img = retArr[1];
-        // now we got warped_img , and cropped_img
         Log.i (TAG,"[NOTE] cropped image cols : "+cropped_img.cols()+", rows : "+cropped_img.rows());
-
-        // find contour
-        // can't use ????
-        //Imgproc.rectangle(processImage, target_rect, new Scalar(0, 0, 255));
 
         // set cropped image back to original image
         List<MatOfPoint> contours = new ArrayList<>();
         Mat hierarchey = new Mat();
-//        Mat cropped_gray = new Mat(cropped_img.rows(),cropped_img.cols(),cropped_img.type());
-//
-//        Imgproc.cvtColor(cropped_img, cropped_gray, Imgproc.COLOR_BGR2GRAY);
         Mat binaryImg = new Mat();
         Imgproc.threshold(cropped_img, binaryImg, 100, 200, Imgproc.THRESH_BINARY_INV);
 
+        //find contours : center of random target2
         double x=0;
         double y=0;
         Imgproc.findContours(binaryImg, contours, hierarchey, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_NONE);
@@ -206,92 +181,35 @@ public class YourService extends KiboRpcService {
         api.saveMatImage(cropped_img,"cropped_img.png");
         api.saveMatImage(processImage,"proc_img.png");
 
+        //calculate distance from center of target to center of cropped image
         double height=13.3;
         double width=17.5;
         int croppedRows = cropped_img.rows();
         int croppedCols = cropped_img.cols();
         double cmPerPixRow=height/croppedRows;
         double cmPerPixCols=width/croppedCols;
-
         double centerX=croppedCols/2;
         double centerY=croppedRows/2;
-
         double moveXcoor=x-centerX;
         double moveYcoor=y-centerY;
-
         double xCoorFullPic=cpx+moveXcoor;
         double yCoorFullPic=cpy+moveYcoor;
-
         double moveXmetre=(moveXcoor*cmPerPixCols)/100;
         double moveYmetre=(moveYcoor*cmPerPixRow)/100;
-
         Log.i (TAG,"[NOTE] moveXmetre = "+moveXmetre+", moveYmetre = "+moveYmetre);
         Log.i (TAG,"[NOTE] Full Pic x = "+xCoorFullPic+", y = "+yCoorFullPic);
 
-        // x - , z +
-//        relativeMoveToLoop(tarx-0.0572,-0.27284,tary+0.1111,0,0,-0.707f,0.707f);
-        // this is close
-//        relativeMoveToLoop(tarx-0.0994+,0,tary+0.0285+moveYmetre,0,0,-0.707f,0.707f);
-        // x-0.0994 , y+0.0285 is the correct offset
-        // usable------------------------------------------------------
-//        relativeMoveToLoop(tarx+moveXmetre-0.0994,0,tary+moveYmetre+0.0285,0,0,-0.707f,0.707f);
-        //-------------------------------------------------------------
-//        relativeMoveToLoop(tarx-0.0994+moveXmetre,-0.27284,tary+0.0285-moveYmetre,0,0,-0.707f,0.707f);
-//        moveToLoop(11.2026, -9.92284, 5.46881,0, 0, -0.707f, 0.707f);
-
-        double[] centroidCoordinate={xCoorFullPic,yCoorFullPic,1};
-
-        //Cramer's Law
-        double[][] matrixA = multiplyMatrices(camMatrixForMult,iMatrix);
-        //removable
-//        matrixA = multiplyMatrices(matrixA,rtmatrix);
-
-        double a03=matrixA[0][3];
-        matrixA[0][3]=0;
-        double a13=matrixA[1][3];
-        matrixA[1][3]=0;
-        double a23=matrixA[2][3];
-        matrixA[2][3]=0;
-        double detA=determinantOfMatrix(matrixA,3);
-
-        double realX=0, realY=0, realZ=0;
-        if(detA!=0) {
-            //x
-            double[][] tempxMat = {{centroidCoordinate[0]-a03, matrixA[0][1], matrixA[0][2]}
-                    , {centroidCoordinate[1]-a13, matrixA[1][1], matrixA[1][2]}
-                    , {centroidCoordinate[2]-a23, matrixA[2][1], matrixA[2][2]}};
-            double detTempXMat = determinantOfMatrix(tempxMat, 3);
-            realX=detTempXMat/detA;
-
-            //y
-            double[][] tempyMat = {{matrixA[0][0],centroidCoordinate[0]-a03, matrixA[0][2]}
-                    , {matrixA[1][0], centroidCoordinate[1]-a13, matrixA[1][2]}
-                    , {matrixA[2][0], centroidCoordinate[2]-a23, matrixA[2][2]}};
-            double detTempYMat = determinantOfMatrix(tempyMat, 3);
-            realY=detTempYMat/detA;
-
-            //z
-            double[][] tempzMat = {{matrixA[0][0],matrixA[0][1], centroidCoordinate[0]-a03}
-                    , {matrixA[1][0],matrixA[1][1], centroidCoordinate[1]-a13}
-                    , {matrixA[2][0],matrixA[2][1], centroidCoordinate[2]-a23}};
-            double detTempZMat = determinantOfMatrix(tempzMat, 3);
-            realZ=detTempZMat/detA;
-        }
-        else{
-            Log.i (TAG,"[NOTE] error det = 0");
-        }
-
-        Log.i (TAG,"[NOTE] realX,realY,realZ = "+realX+", "+realY+", "+realZ);
-//        relativeMoveToLoop(-0.0994+realX,0,+0.0285+realY,0,0,-0.707f,0.707f);
-        //relativeMoveToLoop(-0.0572+realX,0,+0.1111+realY,0,0,-0.707f,0.707f);
-        moveToLoop(11.2026+moveXmetre, -9.92284, 5.46881+0.0145+moveYmetre,0, 0, -0.707f, 0.707f);
+        // move to precise position
+        moveToLoop(11.2026+moveXmetre, -9.92284, 5.48331+moveYmetre,0, 0, -0.707f, 0.707f);
 
         // takeTarget2
+        Log.i (TAG,"[NOTE] take target");
         api.laserControl(true);
         api.takeTarget2Snapshot();
         api.laserControl(false);
 
-        Log.i (TAG,"[NOTE] To goal");
+        //move to goal
+        Log.i (TAG,"[NOTE] go to goal");
         moveToLoop(11.27460, -9.65, 4.62063,0, 0, -0.707f, 0.707f);
         moveToLoop(11.27460, -8.3, 4.62063,0, 0, -0.707f, 0.707f);
         moveToLoop(11.27460, -7.89178, 4.96538,0, 0, -0.707f, 0.707f);
@@ -309,90 +227,6 @@ public class YourService extends KiboRpcService {
     protected void runPlan3(){
         // write here your plan 3
     }
-
-
-    public static double[][] matrixTranspose(double[][] m){
-        double[][] ret=new double[m[0].length][m.length];
-        for(int i=0;i<m[0].length;i++){
-            for(int j=0;j<m.length;j++){
-                ret[i][j]=m[j][i];
-            }
-        }
-        return  ret;
-    }
-
-    private static double[][] MatrixMultiply(double[][] A ,double[][] B){
-        double[][] Mul = new double[A.length][B[0].length];
-        if(A[0].length!=B.length)
-            return null;
-        for (int i = 0; i < A.length; i++) {
-            for (int j = 0; j < B[0].length; j++) {
-                for (int k = 0; k < B.length; k++)
-                    Mul[i][j] += A[i][k] * B[k][j];
-            }
-        }
-        return Mul;
-    }
-    // Function to get cofactor of
-    // mat[p][q] in temp[][]. n is
-    // current dimension of mat[][]
-    static void getCofactor(double mat[][], double temp[][],
-                            int p, int q, int n)
-    {
-        int i = 0, j = 0;
-
-        // Looping for each element
-        // of the matrix
-        for (int row = 0; row < n; row++) {
-            for (int col = 0; col < n; col++) {
-                // Copying into temporary matrix
-                // only those element which are
-                // not in given row and column
-                if (row != p && col != q) {
-                    temp[i][j++] = mat[row][col];
-                    // Row is filled, so increase
-                    // row index and reset col index
-                    if (j == n - 1) {
-                        j = 0;
-                        i++;
-                    }
-                }
-            }
-        }
-    }
-
-    /* Recursive function for finding determinant
-    of matrix. n is current dimension of mat[][]. */
-    static double determinantOfMatrix(double mat[][], int n)
-    {
-        double D = 0; // Initialize result
-
-        // Base case : if matrix
-        // contains single element
-        if (n == 1)
-            return mat[0][0];
-
-        // To store cofactors
-        double temp[][] = new double[n][n];
-
-        // To store sign multiplier
-        int sign = 1;
-
-        // Iterate for each element of first row
-        for (int f = 0; f < n; f++) {
-            // Getting Cofactor of mat[0][f]
-            getCofactor(mat, temp, 0, f, n);
-            D += sign * mat[0][f]
-                    * determinantOfMatrix(temp, n - 1);
-
-            // terms are to be added
-            // with alternate sign
-            sign = -sign;
-        }
-
-        return D;
-    }
-
 
     private Result moveToLoop(double PointX, double PointY, double PointZ, float QuaternionX, float QuaternionY, float QuaternionZ, float QuaternionW ){
         Point point = new Point(PointX, PointY, PointZ);
