@@ -239,7 +239,6 @@ public class YourService extends KiboRpcService {
 //        relativeMoveToLoop(tarx-0.0994+moveXmetre,-0.27284,tary+0.0285-moveYmetre,0,0,-0.707f,0.707f);
 //        moveToLoop(11.2026, -9.92284, 5.46881,0, 0, -0.707f, 0.707f);
 
-
         double[] centroidCoordinate={xCoorFullPic,yCoorFullPic,1};
 
         //Cramer's Law
